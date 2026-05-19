@@ -1,17 +1,19 @@
 package com.example.videoservice.service;
 
+import com.example.videoservice.dto.VideoResponseDTO;
 import com.example.videoservice.entity.Video;
 import com.example.videoservice.repository.VideoRepository;
-import io.minio.BucketExistsArgs;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
+import io.minio.*;
+import io.minio.http.Method;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -27,10 +29,15 @@ public class VideoService {
 
     @Transactional
     public String uploadVideo(MultipartFile file) throws Exception {
-        boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
-        if (!bucketExists) {
-            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+        try{
+            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
+            if (!bucketExists) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+            }
+        } catch (Exception e){
+            throw new RuntimeException(e.getMessage());
         }
+
 
         String videoId = generateKey();
         String fileName = file.getOriginalFilename();
@@ -54,14 +61,41 @@ public class VideoService {
             videoRepository.save(video);
         }
         else{
-            log.info("wrong extension: " + extension);
+            throw new Exception("File type not supported");
         }
         return videoId;
     }
 
-    public String generateKey(){
+    String generateKey(){
         byte[] randomBytes = new byte[8];
         new java.security.SecureRandom().nextBytes(randomBytes);
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+
+    public VideoResponseDTO findByVideoId(String videoId){
+        VideoResponseDTO videoResponseDTO = new VideoResponseDTO();
+        try{
+            Video video = videoRepository.findById(videoId).orElseThrow(() -> new RuntimeException("Video not found: " + videoId));
+            videoResponseDTO.setVideo(video);
+            videoResponseDTO.setUrl(getPresignedUrl(video.getObjectKey()));
+        } catch (Exception e){
+            throw new RuntimeException(e.getMessage());
+        }
+        return videoResponseDTO;
+    }
+
+    private String getPresignedUrl(String objectKey){
+        try{
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .expiry(1, TimeUnit.HOURS)
+                            .build()
+            );
+        } catch (Exception e){
+            throw new RuntimeException(e.getMessage());
+        }
     }
 }

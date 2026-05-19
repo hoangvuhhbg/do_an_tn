@@ -1,5 +1,6 @@
 package com.example.videoservice.controller;
 
+import com.example.videoservice.dto.VideoResponseDTO;
 import com.example.videoservice.service.VideoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,5 +45,11 @@ public class VideoController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", e.getMessage()));
         }
+    }
+
+    @GetMapping("/watch")
+    public ResponseEntity<?> watchVideo(@RequestParam("v") String videoId){
+        VideoResponseDTO videoResponseDTO = videoService.findByVideoId(videoId);
+        return ResponseEntity.ok(videoResponseDTO);
     }
 }
