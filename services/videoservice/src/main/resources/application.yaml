@@ -42,7 +42,7 @@ minio:
   endpoint: http://127.0.0.1:9000
   accessKey: minioadmin
   secretKey: minioadmin
-  bucketName: videos
+  BucketName: videos
 
 jwt:
   secret: ${JWT_SECRET_KEY:enhNPiN2TjlLKiJMcCE1UkBqVyYzZihCX21TNnQ/WVt1RTFxKUE0ZFhoN2dDekorVi1QMG9JOHdRL0x+eEcnew==}
